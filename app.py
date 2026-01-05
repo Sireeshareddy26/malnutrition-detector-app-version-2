@@ -68,8 +68,8 @@ def predict_category(imgs, model, device):
     
     return class_names[pred_idx], confidence, probs.cpu().numpy()
 
-st.title("🍎 MA App v2 - Child Malnutrition Detector")
-st.markdown("**90% accurate • Live from Google Drive • Production Ready**")
+st.title("Child Malnutrition Detector")
+
 
 col1, col2, col3, col4 = st.columns(4)
 with col1: front = st.file_uploader("🖼️ Front", type=['jpg', 'jpeg', 'png'])
@@ -100,8 +100,3 @@ if st.button("🔍 **PREDICT MALNUTRITION**", type="primary"):
     else:
         st.warning("📤 Upload at least **1 photo**")
 
-st.markdown("""
-<div style='text-align: center; color: #666; font-size: 12px;'>
-    🚀 EfficientNet-B2 | 90% Accuracy | Chittoor Clinics Ready
-</div>
-""")
