@@ -4,6 +4,12 @@ import timm
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
+import gdown
+import os
+
+# Google Drive model link (your file)
+MODEL_URL = "https://drive.google.com/uc?id=15gx3S_tp2HEF8sXawQi8-PuPNh2RqQ0Y"
+MODEL_PATH = "best_multiclass_4view_anthrovision.pth"
 
 # 4 Malnutrition Categories
 class_names = ['Healthy', 'Underweight', 'Stunted', 'Stunted and Underweight']
@@ -32,9 +38,14 @@ class MultiModalNet(torch.nn.Module):
 
 @st.cache_resource
 def load_model():
+    # Download model from Google Drive if not exists
+    if not os.path.exists(MODEL_PATH):
+        with st.spinner("🔄 Downloading model from Google Drive (30-60s)..."):
+            gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
+    
     device = torch.device("cpu")
     model = MultiModalNet()
-    model.load_state_dict(torch.load("best_multiclass_4view_anthrovision.pth", map_location=device))
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     model.eval()
     return model, device
 
@@ -45,7 +56,7 @@ def predict_category(imgs, model, device):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     
-    # Pad to 4 images
+    # Pad to exactly 4 images
     while len(imgs) < 4:
         imgs.append(imgs[-1] if imgs else Image.new("RGB", (288, 288), (128, 128, 128)))
     
@@ -61,9 +72,9 @@ def predict_category(imgs, model, device):
     return class_names[pred_idx], confidence, probs.cpu().numpy()
 
 st.title("🍎 MA App v2 - Child Malnutrition Detector")
-st.markdown("**90% accurate • 4-class diagnosis • Chittoor Clinics Ready**")
+st.markdown("**90% accurate • 4-class diagnosis • Production Ready**")
 
-# File uploaders
+# File uploaders in columns
 col1, col2, col3, col4 = st.columns(4)
 with col1: front = st.file_uploader("🖼️ Front", type=['jpg', 'jpeg', 'png'])
 with col2: right = st.file_uploader("➡️ Right", type=['jpg', 'jpeg', 'png']) 
@@ -81,21 +92,23 @@ if st.button("🔍 **PREDICT MALNUTRITION**", type="primary"):
         st.markdown("---")
         if category == 'Healthy':
             st.success(f"✅ **{category}** ({confidence:.1f}% confidence)")
+            st.balloons()
         else:
             st.error(f"❌ **Malnourished - {category}** ({confidence:.1f}% confidence)")
         
-        # All probabilities
+        # Show all probabilities
         st.markdown("**📊 All Probabilities:**")
         col1, col2, col3, col4 = st.columns(4)
         for i, (name, prob) in enumerate(zip(class_names, probs)):
             col = [col1, col2, col3, col4][i]
             col.metric(name, f"{prob*100:.1f}%")
+            
     else:
-        st.warning("📤 Please upload at least 1 photo")
+        st.warning("📤 Please upload at least **1 photo**")
 
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 12px;'>
-    🚀 EfficientNet-B2 + Clinical Data | 90% Accuracy | 2103 children trained
+    🚀 EfficientNet-B2 | 90% Accuracy (2103 children) | <a href='https://chittoorclinics.com'>Chittoor Clinics</a>
 </div>
 """)
