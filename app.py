@@ -7,14 +7,12 @@ import numpy as np
 import gdown
 import os
 
-# Google Drive model link (your file)
+# Google Drive model link
 MODEL_URL = "https://drive.google.com/uc?id=15gx3S_tp2HEF8sXawQi8-PuPNh2RqQ0Y"
 MODEL_PATH = "best_multiclass_4view_anthrovision.pth"
 
-# 4 Malnutrition Categories
 class_names = ['Healthy', 'Underweight', 'Stunted', 'Stunted and Underweight']
 
-# Model Architecture (matches your 90% training)
 class MultiModalNet(torch.nn.Module):
     def __init__(self, clinical_dim=13, num_classes=4):
         super().__init__()
@@ -25,7 +23,7 @@ class MultiModalNet(torch.nn.Module):
             torch.nn.Linear(clinical_dim, 128), torch.nn.ReLU(), torch.nn.Dropout(0.3), 
             torch.nn.Linear(128, 128))
         self.fusion = torch.nn.Sequential(
-            torch.nn.Linear(128 + 128, 64), torch.nn.ReLU(), torch.nn.Dropout(0.2), 
+            torch.nn.Linear(256, 64), torch.nn.ReLU(), torch.nn.Dropout(0.2), 
             torch.nn.Linear(64, num_classes))
     
     def forward(self, imgs4, clinical):
@@ -34,13 +32,13 @@ class MultiModalNet(torch.nn.Module):
         img_feats = self.backbone(imgs_flat).view(B, V, 256).mean(1)
         img_feats = self.image_fc(img_feats)
         clin_feats = self.clinical_net(clinical)
-        return self.fusion(torch.cat([img_feats, clin_feats], 1))
+        combined = torch.cat([img_feats, clin_feats], dim=1)
+        return self.fusion(combined)
 
 @st.cache_resource
 def load_model():
-    # Download model from Google Drive if not exists
     if not os.path.exists(MODEL_PATH):
-        with st.spinner("🔄 Downloading model from Google Drive (30-60s)..."):
+        with st.spinner("🔄 Downloading model from Google Drive..."):
             gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
     
     device = torch.device("cpu")
@@ -56,7 +54,6 @@ def predict_category(imgs, model, device):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     
-    # Pad to exactly 4 images
     while len(imgs) < 4:
         imgs.append(imgs[-1] if imgs else Image.new("RGB", (288, 288), (128, 128, 128)))
     
@@ -72,9 +69,8 @@ def predict_category(imgs, model, device):
     return class_names[pred_idx], confidence, probs.cpu().numpy()
 
 st.title("🍎 MA App v2 - Child Malnutrition Detector")
-st.markdown("**90% accurate • 4-class diagnosis • Production Ready**")
+st.markdown("**90% accurate • Live from Google Drive • Production Ready**")
 
-# File uploaders in columns
 col1, col2, col3, col4 = st.columns(4)
 with col1: front = st.file_uploader("🖼️ Front", type=['jpg', 'jpeg', 'png'])
 with col2: right = st.file_uploader("➡️ Right", type=['jpg', 'jpeg', 'png']) 
@@ -96,19 +92,16 @@ if st.button("🔍 **PREDICT MALNUTRITION**", type="primary"):
         else:
             st.error(f"❌ **Malnourished - {category}** ({confidence:.1f}% confidence)")
         
-        # Show all probabilities
         st.markdown("**📊 All Probabilities:**")
         col1, col2, col3, col4 = st.columns(4)
         for i, (name, prob) in enumerate(zip(class_names, probs)):
             col = [col1, col2, col3, col4][i]
             col.metric(name, f"{prob*100:.1f}%")
-            
     else:
-        st.warning("📤 Please upload at least **1 photo**")
+        st.warning("📤 Upload at least **1 photo**")
 
-st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 12px;'>
-    🚀 EfficientNet-B2 | 90% Accuracy (2103 children) | <a href='https://chittoorclinics.com'>Chittoor Clinics</a>
+    🚀 EfficientNet-B2 | 90% Accuracy | Chittoor Clinics Ready
 </div>
 """)
